@@ -240,8 +240,16 @@ def execute_systemctl(list_of_services, action):
                 click.echo("Executing {} of service {}...".format(action, service))
                 clicommon.run_command("systemctl {} {}".format(action, service))
             except SystemExit as e:
-                log.log_error("Failed to execute {} of service {} with error {}".format(action, service, e))
-                raise
+                if action == SYSTEMCTL_ACTION_STOP:
+                    log.log_warning("Get error {} when stopping {}. Try to wait it.".format(e, service))
+                    if _chk_service_stopped(service):
+                        log.log_info("{} is stopped".format(service))
+                    else:
+                        log.log_error("Failed to execute {} of service {} with error {}".format(action, service, e))
+                        raise
+                else:
+                    log.log_error("Failed to execute {} of service {} with error {}".format(action, service, e))
+                    raise
 
         if (service + '.service' in generated_multi_instance_services):
             # With Multi NPU, Start a thread per instance to do the "action" on multi instance services.
@@ -616,6 +624,19 @@ def _get_sonic_generated_services(num_asic):
             else:
                 generated_services_list.append(line.rstrip('\n'))
     return generated_services_list, generated_multi_instance_services
+
+def _chk_service_stopped(service_name):
+    # Check the service for 10 times with 5s interval
+    for i in range(10):
+        (srv_active, err) = run_command("systemctl is-active {}".format(service_name))
+        if "inactive" in srv_active:
+            return True
+        time.sleep(5)
+
+    (srv_status, err) = run_command("systemctl status {}".format(service_name))
+    log_error("Wait {} to stop overtime, error: {}".format(service_name, err))
+    log_error(srv_status)
+    return False
 
 # Callback for confirmation prompt. Aborts if user enters "n"
 def _abort_if_false(ctx, param, value):
