@@ -241,8 +241,8 @@ def execute_systemctl(list_of_services, action):
                 clicommon.run_command("systemctl {} {}".format(action, service))
             except SystemExit as e:
                 if action == SYSTEMCTL_ACTION_STOP:
-                    log.log_warning("Get error {} when stopping {}. Try to wait it.".format(e, service))
-                    if _chk_service_stopped(service):
+                    log.log_warning("Received error {} when stopping service '{}'. Waiting to see if it stops ...".format(e, service))
+                    if _wait_for_service_stop(service):
                         log.log_info("{} is stopped".format(service))
                     else:
                         log.log_error("Failed to execute {} of service {} with error {}".format(action, service, e))
@@ -625,17 +625,17 @@ def _get_sonic_generated_services(num_asic):
                 generated_services_list.append(line.rstrip('\n'))
     return generated_services_list, generated_multi_instance_services
 
-def _chk_service_stopped(service_name):
+def _wait_for_service_stop(service_name):
     # Check the service for 10 times with 5s interval
     for i in range(10):
-        (srv_active, err) = run_command("systemctl is-active {}".format(service_name))
+        srv_active = clicommon.run_command("systemctl is-active {}".format(service_name), return_cmd=True)
         if "inactive" in srv_active:
             return True
         time.sleep(5)
 
-    (srv_status, err) = run_command("systemctl status {}".format(service_name))
-    log_error("Wait {} to stop overtime, error: {}".format(service_name, err))
-    log_error(srv_status)
+    srv_status = clicommon.run_command("systemctl status {}".format(service_name), return_cmd=True)
+    log.log_error("Wait {} to stop overtime, error: {}".format(service_name, err))
+    log.log_error(srv_status)
     return False
 
 # Callback for confirmation prompt. Aborts if user enters "n"
