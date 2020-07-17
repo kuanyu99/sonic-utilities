@@ -627,11 +627,11 @@ def _get_sonic_generated_services(num_asic):
 
 def _wait_for_service_stop(service_name):
     # Check the service for 10 times with 5s interval
-    for i in range(10):
+    for i in range(60):
         srv_active = clicommon.run_command("systemctl is-active {}".format(service_name), return_cmd=True)
         if "inactive" in srv_active:
             return True
-        time.sleep(5)
+        time.sleep(1)
 
     srv_status = clicommon.run_command("systemctl status {}".format(service_name), return_cmd=True)
     log.log_error("Wait {} to stop overtime, error: {}".format(service_name, err))
